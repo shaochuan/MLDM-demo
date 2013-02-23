@@ -1,3 +1,3 @@
-[submodule "demo/im"]
-	path = demo/im
+[submodule "sift/im"]
+	path = sift/im
 	url = https://github.com/shaochuan/im.git
