@@ -5,45 +5,63 @@ import sys
 
 gMainWindowName = 'Main Window'
 gImageSize = (500, 375)
+gMaxDist = 800
 
-keypoints = {}
-descriptors = {}
-
-def add_image_features(name):
-    img = cv.LoadImage(name, cv.CV_LOAD_IMAGE_COLOR)
-    img = im.resize(img, gImageSize)
-    keypts, desctrs = im.extract_sift(img)
-    keypoints[img] = keypts
-    descriptors[img] = desctrs
-    return img
-
-def main(png1, png2):
-    img1 = add_image_features(png1)
-    img2 = add_image_features(png2)
-    max_dist = 1000
+class ImageObject(object):
+    def __init__(self, name, size=gImageSize):
+        super(ImageObject, self).__init__()
+        self.name = name
+        self.size = size
+        self._image = None
+        self._keypoints = None
+        self._descriptors = None
+    @property
+    def iplimage(self):
+        if not self._image:
+            _image = cv.LoadImage(self.name, cv.CV_LOAD_IMAGE_COLOR)
+            self._image = im.resize(_image, self.size)
+        return self._image
+    @property
+    def keypoints(self):
+        if not self._keypoints:
+            self._keypoints, self._descriptors = im.extract_sift(self.iplimage)
+        return self._keypoints
+    @property
+    def descriptors(self):
+        if not self._descriptors:
+            self._keypoints, self._descriptors = im.extract_sift(self.iplimage)
+        return self._descriptors
+    @property
+    def width(self):
+        return self.iplimage.width
+    @property
+    def height(self):
+        return self.iplimage.height
+        
+def match(imgobj1, imgobj2):
     m = cv2.DescriptorMatcher_create('BruteForce-L1')
-    matches = m.match(descriptors[img1], descriptors[img2])
+    matches = m.match(imgobj1.descriptors, imgobj2.descriptors)
     cv.NamedWindow(gMainWindowName, cv.CV_WINDOW_AUTOSIZE)
 
-    stacked_image = im.stitch_stacking(img1, img2)
+    stacked_image = im.stitch_stacking(imgobj1.iplimage, imgobj2.iplimage)
 
     # draw dots at keypoints.
-    for kpt in keypoints[img1]:
+    for kpt in imgobj1.keypoints:
         cv.Circle(stacked_image, tuple(map(int, kpt.pt)), 1, im.color.green)
-    for kpt in keypoints[img2]:
+    for kpt in imgobj2.keypoints:
         pt = map(int, kpt.pt)
-        pt[1] += img1.height
+        pt[1] += imgobj1.iplimage.height
         cv.Circle(stacked_image, tuple(pt), 1, im.color.green)
 
     # draw lines between matches
     for m in matches:
-        kpt1 = keypoints[img1][m.queryIdx]
-        kpt2 = keypoints[img2][m.trainIdx]
+        kpt1 = imgobj1.keypoints[m.queryIdx]
+        kpt2 = imgobj2.keypoints[m.trainIdx]
         pt1 = tuple(map(int, kpt1.pt))
         pt2 = map(int, kpt2.pt)
-        pt2[1] += img1.height
+        pt2[1] += imgobj1.height
         pt2 = tuple(pt2)
-        if m.distance < max_dist:
+        if m.distance < gMaxDist:
             cv.Line(stacked_image, pt1, pt2, im.color.green, thickness=1)
 
     cv.ShowImage(gMainWindowName, stacked_image)
@@ -54,16 +72,33 @@ def main(png1, png2):
         k = chr(k) if k > 0 else 0
         if k == 'q':
             break
+def isfloat(str):
+    try:
+        float(str)
+        return True
+    except ValueError:
+        return False
 
 def print_helper():
     print '''
     Usage:
 
     ./demo.py <filename1.png> <filename2.png>
+
+    or
+
+    ./demo.py <filename1.png> <scale=0.5>
 '''
 if __name__ == '__main__':
     import sys
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 2:
         print_helper()
         sys.exit(0)
-    main(sys.argv[1], sys.argv[2])
+    elif isfloat(sys.argv[2]):
+        scale = float(sys.argv[2])
+        scaled_size = map(int, (gImageSize[0] * scale, gImageSize[1] * scale))
+        imgobj2 = ImageObject(sys.argv[1], scaled_size)
+    else:
+        imgobj2 = ImageObject(sys.argv[2])
+    imgobj1 = ImageObject(sys.argv[1])
+    match(imgobj1, imgobj2)
