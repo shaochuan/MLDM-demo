@@ -1,0 +1,2 @@
+#!/bin/bash
+./demo.py dinosaur-1.png dinosaur-2.png
