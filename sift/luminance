@@ -1,0 +1,2 @@
+#!/bin/bash
+./demo.py picture.png picture-over_exposed.png
