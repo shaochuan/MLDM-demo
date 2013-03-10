@@ -1,2 +1,2 @@
 #!/bin/bash
-./demo.py dinosaur-1.png 0.8
+./demo.py picture.png 0.8
