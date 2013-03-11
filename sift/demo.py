@@ -8,11 +8,11 @@ gImageSize = (500, 375)
 gMaxDist = 800
 
 class ImageObject(object):
-    def __init__(self, name, size=gImageSize):
+    def __init__(self, name, iplimage=None, size=gImageSize):
         super(ImageObject, self).__init__()
-        self.name = name
+        self.name = name if not iplimage else None
         self.size = size
-        self._image = None
+        self._image = iplimage
         self._keypoints = None
         self._descriptors = None
     @property
@@ -37,14 +37,15 @@ class ImageObject(object):
     @property
     def height(self):
         return self.iplimage.height
-        
+
 def match(imgobj1, imgobj2):
+    ''' Returns matches keypoints '''
     m = cv2.DescriptorMatcher_create('BruteForce-L1')
     matches = m.match(imgobj1.descriptors, imgobj2.descriptors)
-    cv.NamedWindow(gMainWindowName, cv.CV_WINDOW_AUTOSIZE)
+    return matches
 
+def generate_stacked_image(matches):
     stacked_image = im.stitch_stacking(imgobj1.iplimage, imgobj2.iplimage)
-
     # draw dots at keypoints.
     for kpt in imgobj1.keypoints:
         cv.Circle(stacked_image, tuple(map(int, kpt.pt)), 1, im.color.green)
@@ -64,14 +65,8 @@ def match(imgobj1, imgobj2):
         if m.distance < gMaxDist:
             cv.Line(stacked_image, pt1, pt2, im.color.green, thickness=1)
 
-    cv.ShowImage(gMainWindowName, stacked_image)
+    return stacked_image
 
-    print "Press 'q' to leave...(focus is on the window)"
-    while True:
-        k = cv.WaitKey(3)
-        k = chr(k) if k > 0 else 0
-        if k == 'q':
-            break
 def isfloat(str):
     try:
         float(str)
@@ -97,8 +92,20 @@ if __name__ == '__main__':
     elif isfloat(sys.argv[2]):
         scale = float(sys.argv[2])
         scaled_size = map(int, (gImageSize[0] * scale, gImageSize[1] * scale))
-        imgobj2 = ImageObject(sys.argv[1], scaled_size)
+        imgobj2 = ImageObject(sys.argv[1], size=scaled_size)
     else:
         imgobj2 = ImageObject(sys.argv[2])
     imgobj1 = ImageObject(sys.argv[1])
-    match(imgobj1, imgobj2)
+
+    matches = match(imgobj1, imgobj2)
+    stacked_image = generate_stacked_image(matches)
+
+    cv.NamedWindow(gMainWindowName, cv.CV_WINDOW_AUTOSIZE)
+    cv.ShowImage(gMainWindowName, stacked_image)
+
+    print "Press 'q' to leave...(focus is on the window)"
+    while True:
+        k = cv.WaitKey(3)
+        k = chr(k) if k > 0 else 0
+        if k == 'q':
+            break
